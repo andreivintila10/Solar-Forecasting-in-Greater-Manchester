@@ -1,0 +1,111 @@
+#!/bin/bash
+clear
+printf "Getting Weather Data from ManUniCast - Manchester Airport...\n\n"
+
+# Define the days of the month.
+readonly daysInJanuary=31
+readonly daysInFebruary_common=28
+readonly daysInFebruary_leap=29
+readonly daysInMarch=31
+readonly daysInApril=30
+readonly daysInMay=31
+readonly daysInJune=30
+readonly daysInJuly=31
+readonly daysInAugust=31
+readonly daysInSeptember=30
+readonly daysInOctober=31
+readonly daysInNovember=30
+readonly daysInDecember=31
+
+readonly one=1
+
+presentDay=23
+presentMonth=11
+presentYear=2017
+
+arrayMonths=(0 $daysInJanuary $daysInFebruary_common $daysInMarch $daysInApril $daysInMay $daysInJune $daysInJuly $daysInAugust $daysInSeptember $daysInOctober $daysInNovember $daysInDecember)
+
+for (( year = 2014; year <= $presentYear; year++ ))
+do
+  if (( $year % 4 != 0 ))
+  then
+    arrayMonths[2]=$daysInFebruary_common
+  elif (( $year % 100 != 0 ))
+  then
+    arrayMonths[2]=$daysInFebruary_leap
+  elif (( $year % 400 != 0 ))
+  then
+    arrayMonths[2]=$daysInFebruary_common
+  else
+    arrayMonths[2]=$daysInFebruary_leap
+  fi
+
+  if (( $year != $presentYear ))
+  then
+    monthsInYear=12
+  else
+    monthsInYear=$presentMonth
+  fi
+
+  for (( month = 1; month <= $monthsInYear; month++ ))
+  do
+    if (( $year == $presentYear && $month == $presentMonth ))
+    then
+      daysInMonth=$presentDay
+    else
+      daysInMonth=${arrayMonths[$month]} 
+    fi
+
+    for (( day = 1; day <= $daysInMonth; day++ ))
+    do
+      if (( $day < 10 ))
+      then
+        dayStr="0"$day
+      else
+        dayStr=""$day
+      fi
+
+      if (( $month < 10 ))
+      then
+        monthStr="0"$month
+      else
+        monthStr=""$month
+      fi
+
+      prevDay_day=$(($day-$one))
+      if (( $prevDay_day == 0 ))
+      then
+        prevDay_month=$(($month-$one))
+        if (( $prevDay_month == 0 ))
+        then
+          prevDay_year=$(($year-$one))
+          prevDay_month=12
+          prevDay_day=${arrayMonths[prevDay_month]}
+        else
+          prevDay_year=$year
+          prevDay_day=${arrayMonths[prevDay_month]}
+        fi
+      else
+        prevDay_year=$year
+        prevDay_month=$month
+      fi
+
+      if (( $prevDay_day < 10 ))
+      then
+        prevDay_day_Str="0"$prevDay_day
+      else
+        prevDay_day_Str=""$prevDay_day
+      fi
+
+      if (( $prevDay_month < 10 ))
+      then
+        prevDay_month_Str="0"$prevDay_month
+      else
+        prevDay_month_Str=""$prevDay_month
+      fi
+
+      curl --url "http://manunicast.seaes.manchester.ac.uk/charts/manunicast/"$year$monthStr$dayStr"/d02/meteograms/meteo_MAN_"$prevDay_year"-"$prevDay_month_Str"-"$prevDay_day_Str"_1800_data.txt" >> $dayStr"-"$monthStr"-"$year".data"
+    done
+  done
+done
+printf "\n"

@@ -1,0 +1,71 @@
+#!/bin/bash
+clear
+printf "Getting the Solar Forecast from PV Live Sheffield...\n\n"
+
+# Define the days of the month.
+readonly daysInJuly=31
+readonly daysInAugust=31
+readonly daysInSeptember=30
+readonly daysInOctober=31
+
+startDay=0
+daysInMonth=0
+startTime=0
+monthName=""
+
+for (( month = 7; month <= 10; month++ ))
+do
+  if [ $month -eq 7 ]; then
+    # Days in July.
+    daysInMonth=$daysInJuly
+
+    startDay=20
+    startTime=13
+
+    monthName="July"
+  elif [ $month -eq 8 ]; then
+    # Days in August.
+    daysInMonth=$daysInAugust
+
+    startDay=1
+    startTime=1
+
+    monthName="August"
+  elif [ $month -eq 9 ]; then
+    # Days in September.
+    daysInMonth=$daysInSeptember
+
+    startDay=1
+    startTime=1
+
+    monthName="September"
+  else
+    # Days in October.
+    daysInMonth=$daysInOctober
+
+    startDay=1
+    startTime=1
+
+    monthName="October"
+  fi
+
+  if [ ! -d $monthName ]
+  then
+    mkdir ./$monthName
+  else
+    echo "The folder '"$monthName"' already exists!"
+  fi
+
+  for (( day = $startDay; day <= $daysInMonth; day++ ))
+  do
+    if [ $month -eq 7 ] && [ ! $day -eq $startDay ]; then
+      startTime=1
+    fi
+
+    for (( hourOfPrediction = $startTime; hourOfPrediction <= 22; hourOfPrediction += 3 ))
+    do
+      curl --user pvlive:'andreivintila' --url "https://www.solar.sheffield.ac.uk/ssfdb3/sql/call%20pv_forecast(%222017-"$month"-"$day"T"$hourOfPrediction":00:00%22)" >> "./"$monthName"/"$day"-"$month"-2017T"$hourOfPrediction":00:00.data"
+    done
+  done
+done
+printf "\n"
