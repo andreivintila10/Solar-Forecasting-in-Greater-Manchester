@@ -1,5 +1,6 @@
 import sys
 from time import clock
+import datetime
 import mysql.connector
 from mysql.connector import Error
 
@@ -18,11 +19,12 @@ params = {
     'database': dbdatabase
 }
 
+
 def generateTheDayFeatures(date):
-  day = int(date[8:9])
+  day = int(date[8:10])
 
   dayFeatureVector = []
-  for index in range(1, 31):
+  for index in range(1, 32):
     if index == day:
       dayFeatureVector.append(1)
     else:
@@ -32,10 +34,10 @@ def generateTheDayFeatures(date):
 
 
 def generateTheMonthFeatures(date):
-  month = int(date[5:6])
+  month = int(date[5:7])
 
   monthFeatureVector = []
-  for index in range(1, 12):
+  for index in range(1, 13):
     if index == month:
       monthFeatureVector.append(1)
     else:
@@ -45,7 +47,7 @@ def generateTheMonthFeatures(date):
 
 
 def generateTheSeasonFeatures(date):
-  month = int(date[5:6])
+  month = int(date[5:7])
 
   if month <= 2 or month == 12:
     seasonsFeatureVector = [1, 0, 0, 0]
@@ -55,7 +57,25 @@ def generateTheSeasonFeatures(date):
     seasonsFeatureVector = [0, 0, 1, 0]
   elif month >= 9 and month <= 11:
     seasonsFeatureVector = [0, 0, 0, 1]
+
   return seasonsFeatureVector
+
+
+def generateTheDayOfTheYearFeatures(date_str):
+  dayOfTheYearFeatureVector = []
+
+  date_object = datetime.date(int(date_str[0:4]), int(date_str[5:7]), int(date_str[8:10]))
+  new_year_date = datetime.date(int(date_str[0:4]), 1, 1)
+
+  day_of_the_year = (date_object - new_year_date).days + 1
+
+  for index in range(1, 367):
+    if index == day_of_the_year:
+      dayOfTheYearFeatureVector.append(1)
+    else:
+      dayOfTheYearFeatureVector.append(0)
+
+  return dayOfTheYearFeatureVector
 
 
 def createFeatureVectors(noOfFeatures, noOfRecords):
@@ -74,6 +94,7 @@ def createFeatureVectors(noOfFeatures, noOfRecords):
     featureVector += generateTheDayFeatures(date_array[index2])
     featureVector += generateTheMonthFeatures(date_array[index2])
     featureVector += generateTheSeasonFeatures(date_array[index2])
+    featureVector += generateTheDayOfTheYearFeatures(date_array[index2])
 
     featureVectors.append(featureVector)
 
@@ -88,10 +109,11 @@ try:
   else:
     print('Connection error!')
 
+  print('Querying the database...')
   cursor = conn.cursor()
-  query = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%s')='00:00' AND Temperature IS NOT NULL AND Dew_point IS NOT NULL AND Relative_humidity IS NOT NULL AND Wind_speed IS NOT NULL AND Wind_direction IS NOT NULL AND Total_solar_radiation IS NOT NULL AND Precipitation IS NOT NULL ORDER BY Date ASC")
+  query = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%$
   cursor.execute(query)
-
+  
   date_array = []
   time_array = []
   temperature_array = []
@@ -103,8 +125,8 @@ try:
   precipitation_array = []
 
   featureVectors = []
-  for (location, date, time, temperature, dew_point, relative_humidity, wind_spd, wind_dir, solar_rad, precip) in cursor:
-    print(location + ' ' + str(date) + ' ' + str(time) + ' ' + str(temperature) + ' ' + str(dew_point) + ' ' + str(relative_humidity) + ' ' + str(wind_spd) + ' ' + str(wind_dir) + ' ' +$
+  for (location, date, time, temperature, dew_point, relative_humidity, wind_spd, wind_dir, solar_rad$
+    #print(location + ' ' + str(date) + ' ' + str(time) + ' ' + str(temperature) + ' ' + str(dew_poin$
     date_array.append(str(date))
     time_array.append(str(time))
     temperature_array.append(str(temperature))
@@ -116,20 +138,19 @@ try:
     precipitation_array.append(str(precip))
 
   recordsLength = len(temperature_array)
-  print ('Check array: ')
-  print (date_array[int(recordsLength / 2)] + ' ' + time_array[int(recordsLength / 2)] + ' ' + temperature_array[int(recordsLength / 2)] + ' ' + dew_point_array[int(recordsLength / 2)] $
   cursor.close()
 
-  noOfFeatures = 2
+  noOfFeatures = 24
   outfile = "test_features(" + str(noOfFeatures) + ").csv"
   out = open(outfile, "w")
 
+  print('Computing the feature vectors...')
   featureVectors = createFeatureVectors(noOfFeatures, recordsLength)
-  print('The feature vectors are: ')
 
+  print('Storing the feature vectors to file...')
   vectorsLength = len(featureVectors)
   for index in range(1, vectorsLength):
-    print('  ' + str(featureVectors[index]))
+    #print('  ' + str(featureVectors[index]))
     vectorLength = len(featureVectors[index])
     for index2 in range(1, vectorLength):
       out.write(str(featureVectors[index][index2]))
