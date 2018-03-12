@@ -61,13 +61,17 @@ def generateTheSeasonFeatures(date):
   return seasonsFeatureVector
 
 
-def generateTheDayOfTheYearFeatures(date_str):
-  dayOfTheYearFeatureVector = []
-
+def getDayOfTheYear(date_str):
   date_object = datetime.date(int(date_str[0:4]), int(date_str[5:7]), int(date_str[8:10]))
   new_year_date = datetime.date(int(date_str[0:4]), 1, 1)
-
   day_of_the_year = (date_object - new_year_date).days + 1
+
+  return day_of_the_year
+
+
+def generateTheDayOfTheYearFeatures(date_str):
+  dayOfTheYearFeatureVector = []
+  day_of_the_year = getDayOfTheYear(date_str)
 
   for index in range(1, 367):
     if index == day_of_the_year:
@@ -78,25 +82,71 @@ def generateTheDayOfTheYearFeatures(date_str):
   return dayOfTheYearFeatureVector
 
 
-def createFeatureVectors(noOfFeatures, noOfRecords):
+def createDatetimeObject(date, time):
+  datetime_object = datetime.datetime(int(date[0:4]), int(date[5:7]), int(date[8:10]), int(time[0:2]), int(time[3:5]), int(time[6:8]))    
+  return datetime_object
+
+
+def areOneHourApart(datetime_object1, datetime_object2):
+  delta = abs(datetime_object2 - datetime_object1)
+
+  if delta.days == 0 and delta.seconds == 3600:
+    return 1
+  else:
+    return 0
+
+
+def createFeatureVector(left, right):
+  featureVector = []
+  for index in range(left, right):
+    featureVector.append(temperature_array[index])
+    featureVector.append(dew_point_array[index])
+    featureVector.append(relative_humidity_array[index])
+    featureVector.append(wind_speed_array[index])
+    featureVector.append(wind_direction_array[index])
+    featureVector.append(total_solar_radiation_array[index])
+    featureVector.append(precipitation_array[index])
+
+  currentDatetime = createDatetimeObject(date_array[right - 1], time_array[right - 1])
+  nextDatetime = currentDatetime + datetime.timedelta(hours=1)
+  nextDate = nextDatetime.date()
+  nextTime = nextDatetime.time()
+
+  featureVector += generateTheDayFeatures(nextDate)
+  featureVector += generateTheMonthFeatures(nextDate)
+  featureVector += generateTheSeasonFeatures(nextDate)
+  featureVector += generateTheDayOfTheYearFeatures(nextDate)
+  featureVector.append(nextDate + " " + nextTime)
+
+  return featureVector
+
+
+def createFeatureVectors(noOfFeatures, noOfRecords): 
+  left = 0
+  right = left + noOfFeatures
+  previousDatetime = createDatetimeObject(date_array[left], time_array[left])
   featureVectors = []
-  for index in range(1, noOfRecords - noOfFeatures):
-    featureVector = []
-    for index2 in range(index, index + noOfFeatures):
-      featureVector.append(temperature_array[index2])
-      featureVector.append(dew_point_array[index2])
-      featureVector.append(relative_humidity_array[index2])
-      featureVector.append(wind_speed_array[index2])
-      featureVector.append(wind_direction_array[index2])
-      featureVector.append(total_solar_radiation_array[index2])
-      featureVector.append(precipitation_array[index2])
+  while right <= noOfRecords:
+    ok = 1
+    for index in range(left + 1, right):
+      currentDatetime = createDatetimeObject(date_array[index], time_array[index])
 
-    featureVector += generateTheDayFeatures(date_array[index2])
-    featureVector += generateTheMonthFeatures(date_array[index2])
-    featureVector += generateTheSeasonFeatures(date_array[index2])
-    featureVector += generateTheDayOfTheYearFeatures(date_array[index2])
+      if not areOneHourApart(previousDatetime, currentDatetime):
+        ok = 0
+        break
 
-    featureVectors.append(featureVector)
+      previousDatetime = currentDatetime
+
+    if ok:
+      featureVector = createFeatureVector(left, right)
+      featureVectors.append(featureVector)
+
+      left += 1
+      right += 1
+    else:
+      left = right - 1
+      right = left + noOfFeatures
+      previousDatetime = createDatetimeObject(date_array[left], time_array[left])
 
   return featureVectors
 
@@ -111,7 +161,7 @@ try:
 
   print('Querying the database...')
   cursor = conn.cursor()
-  query = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%$
+  query = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%s')='00:00' AND Temperature IS NOT NULL AND Dew_point IS NOT NULL AND Relative_humidity IS NOT NULL AND Wind_speed IS NOT NULL AND Wind_direction IS NOT NULL AND Total_solar_radiation IS NOT NULL AND Precipitation IS NOT NULL ORDER BY Date ASC")
   cursor.execute(query)
   
   date_array = []
@@ -125,9 +175,12 @@ try:
   precipitation_array = []
 
   featureVectors = []
-  for (location, date, time, temperature, dew_point, relative_humidity, wind_spd, wind_dir, solar_rad$
-    #print(location + ' ' + str(date) + ' ' + str(time) + ' ' + str(temperature) + ' ' + str(dew_poin$
+  for (location, date, time, temperature, dew_point, relative_humidity, wind_spd, wind_dir, solar_rad, precip) in cursor:
     date_array.append(str(date))
+    time = str(time)
+    if len(time) == 7:
+      time = '0' + time
+
     time_array.append(str(time))
     temperature_array.append(str(temperature))
     dew_point_array.append(str(dew_point))
@@ -136,9 +189,9 @@ try:
     wind_direction_array.append(str(wind_dir))
     total_solar_radiation_array.append(str(solar_rad))
     precipitation_array.append(str(precip))
+    #print(location + ' ' + str(date) + ' ' + str(time) + ' ' + str(temperature) + ' ' + str(dew_point) + ' ' + str(relative_humidity) + ' ' + str(wind_spd) + ' ' + str(wind_dir) + ' ' + str(solar_rad) + ' ' + str(precip))
 
   recordsLength = len(temperature_array)
-  cursor.close()
 
   noOfFeatures = 24
   outfile = "test_features(" + str(noOfFeatures) + ").csv"
@@ -148,22 +201,39 @@ try:
   featureVectors = createFeatureVectors(noOfFeatures, recordsLength)
 
   print('Storing the feature vectors to file...')
+  labelsFor = []
   vectorsLength = len(featureVectors)
   for index in range(1, vectorsLength):
-    #print('  ' + str(featureVectors[index]))
+    #print(str(featureVectors[index]))
     vectorLength = len(featureVectors[index])
     for index2 in range(1, vectorLength):
       out.write(str(featureVectors[index][index2]))
       if index2 < vectorLength - 1:
+        out.write(str(featureVectors[index][index2]))
+
+      if index2 < vectorLength - 2:
         out.write(', ')
+
+      if index2 == vectorLength - 1:
+        labelsFor.append(featureVectors[index][index2])
+
     out.write('\n')
 
   out.close()
+
+  print(labelsFor)
+  query2 = ("SELECT DISTINCT generation_MW FROM pv_generation_actual WHERE region_id=247 AND generation_MW IS NOT NULL ORDER BY datetime_GMT ASC")
+  cursor.execute(query2)
+
+  labelVector = []
+  for (generation) in cursor:
+    print(generation)
 
 except Error as e:
   print(e)
 
 finally:
+  cursor.close()
   conn.close()
   end_time = clock()
   run_time = end_time - start_time
