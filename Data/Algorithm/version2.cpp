@@ -42,10 +42,7 @@ struct observatory {
 void meniu() {
   cout << "=====MENIU=====" << endl;
   cout << "1. Regional data" << endl;
-  cout << "2. ManUniCast" << endl;
-  cout << "3. Observatory" << endl;
-  cout << "4. Feature vector (training)" << endl;
-  cout << "5. Feature vector (testing)" << endl;
+  cout << "2. Observatory" << endl;
   cout << "===============" << endl;
 }
 
@@ -422,10 +419,7 @@ int main() {
             fclose(outfile);
             break;
 
-    case 2: cout << "ManUniCast Data..." << endl;
-            break;
-
-    case 3: cout << "Observatory Data..." << endl;
+    case 2: cout << "Observatory Data..." << endl;
             system("cls");
             cout << "Choose site..." << endl;
             cout << "  1. Whitworth" << endl;
@@ -458,12 +452,6 @@ int main() {
             }
             else
               cout << "Invalid site!" << endl;
-            break;
-
-    case 4: cout << "Feature vector (training)..." << endl;
-            break;
-
-    case 5: cout << "Feature vector (testing)..." << endl;
             break;
 
     default: cout << "Invalid option!" << endl;
