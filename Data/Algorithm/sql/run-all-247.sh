@@ -9,8 +9,8 @@ while true; do
   esac
 done
 
-#time ./247_2014.sql
-#time ./247_2015.sql
-#time ./247_2016.sql
+time ./247_2014.sql
+time ./247_2015.sql
+time ./247_2016.sql
 time ./247_2017.sql
 time ./247_2018.sql

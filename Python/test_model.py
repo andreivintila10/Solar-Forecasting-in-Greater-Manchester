@@ -1,34 +1,69 @@
 from time import clock
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, date
 import urllib.request
 import json
 
 
-def getURL(site_code):
-  url_template = "http://manunicast.seaes.manchester.ac.uk/charts/manunicast/{}{}{}/d02/meteograms/meteo_{}_{}-{}-{}_1800_data.txt"
+def getForecastDates(currentDatetime):
   forecast_update_hour = 9
+  timeOfFirstForecast = time(18, 0, 0)
 
-  datetime_now = datetime.now()
-  #print("Datetime now: " + str(datetime_now))
-  time_now = datetime.time(datetime_now)
+  #print("Current datetime: " + str(currentDatetime))
+  currentTime = datetime.time(currentDatetime)
 
-  if datetime_now.hour < forecast_update_hour:
-  	datetime_now -= timedelta(days=1)
-  	#print("Adjusted datetime: " + str(datetime_now))
+  if currentTime.hour < forecast_update_hour:
+    currentDatetime -= timedelta(days=1)
+    #print("Adjusted datetime: " + str(currentDatetime))
 
-  year1 = datetime_now.year
-  month1 = str(datetime_now.month).zfill(2)
-  day1 = str(datetime_now.day).zfill(2)
+  year1 = currentDatetime.year
+  month1 = currentDatetime.month
+  day1 = currentDatetime.day
 
-  datetime_yesterday = datetime_now - timedelta(days=1)
+  datetime_yesterday = currentDatetime - timedelta(days=1)
   #print("Datetime yesterday: " + str(datetime_yesterday))
   year2 = datetime_yesterday.year
-  month2 = str(datetime_yesterday.month).zfill(2)
-  day2 = str(datetime_yesterday.day).zfill(2)
+  month2 = datetime_yesterday.month
+  day2 = datetime_yesterday.day
+  
+  first_date = date(year1, month1, day1)
+  second_date = datetime(year2, month2, day2, timeOfFirstForecast.hour, timeOfFirstForecast.minute)
 
-  url = url_template.format(year1, month1, day1, site_code, year2, month2, day2)
+  forecastDates = []
+  forecastDates.append(first_date)
+  forecastDates.append(second_date)
+
+  return forecastDates
+
+
+def getURL(forecastDates, site_code):
+  url_template = "http://manunicast.seaes.manchester.ac.uk/charts/manunicast/{}{}{}/d02/meteograms/meteo_{}_{}-{}-{}_{}{}_data.txt"
+
+  year1 = str(forecastDates[0].year).zfill(4)
+  month1 = str(forecastDates[0].month).zfill(2)
+  day1 = str(forecastDates[0].day).zfill(2)
+
+  year2 = str(forecastDates[1].year).zfill(4)
+  month2 = str(forecastDates[1].month).zfill(2)
+  day2 = str(forecastDates[1].day).zfill(2)
+  hour2 = str(forecastDates[1].hour).zfill(2)
+  minute2 = str(forecastDates[1].minute).zfill(2)
+
+  url = url_template.format(year1, month1, day1, site_code, year2, month2, day2, hour2, minute2)
   return url
+
+
+def fetchData(numberOfHours, startDatetime, site_code):
+  currentDatetime = datetime.now()
+  delta_datetime = currentDatetime - datetime.timedelta(hour=numberOfHours) + datetime.timedelta(hour=1)
+  forecastDates = getForecastDates(currentDatetime)
+
+  if delta_datetime < forecastDates[1]:
+    remainingNumberOfHours = (forecastDates[1] - delta_datetime + datetime.timedelta(hour=1)).hour
+    return fetchData(remainingNumberOfHours, forecastDates[1] - 1)
+  else:
+    for index in range():
+      
 
 
 def main():
@@ -37,10 +72,15 @@ def main():
 
   site_codes = ['WHIT', 'HOLM', 'MAN']
   
-  whitworth_url = getURL(site_codes[0])
+  currentDatetime = datetime.now()
+  forecastDates = getForecastDates(currentDatetime)
+  print(forecastDates[0])
+  print(forecastDates[1])
+
+  #whitworth_url = getURL(site_codes[0])
   #print(whitworth_url)
-  with urllib.request.urlopen(whitworth_url) as url:
-    data = json.loads(url.read().decode())
+  #with urllib.request.urlopen(whitworth_url) as url:
+  #  data = json.loads(url.read().decode())
 
   #print(data['slp'])
 

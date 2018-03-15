@@ -3,6 +3,10 @@ from time import clock
 import datetime
 import mysql.connector
 from mysql.connector import Error
+import numpy as np
+from sklearn.neural_network import MLPRegressor
+import pickle
+
 
 start_time = clock()
 print('Version of Python: ' + sys.version)
@@ -26,9 +30,9 @@ def generateTheDayFeatures(date):
   dayFeatureVector = []
   for index in range(1, 32):
     if index == day:
-      dayFeatureVector.append(1)
+      dayFeatureVector.append(1.0)
     else:
-      dayFeatureVector.append(0)
+      dayFeatureVector.append(0.0)
 
   return dayFeatureVector
 
@@ -39,10 +43,11 @@ def generateTheMonthFeatures(date):
   monthFeatureVector = []
   for index in range(1, 13):
     if index == month:
-      monthFeatureVector.append(1)
+      monthFeatureVector.append(1.0)
     else:
-      monthFeatureVector.append(0)
+      monthFeatureVector.append(0.0)
 
+  #print("Month type: " + str(type(monthFeatureVector[-2])))
   return monthFeatureVector
 
 
@@ -50,13 +55,13 @@ def generateTheSeasonFeatures(date):
   month = int(date[5:7])
 
   if month <= 2 or month == 12:
-    seasonsFeatureVector = [1, 0, 0, 0]
+    seasonsFeatureVector = [1.0, 0.0, 0.0, 0.0]
   elif month >= 3 and month <= 5:
-    seasonsFeatureVector = [0, 1, 0, 0]
+    seasonsFeatureVector = [0.0, 1.0, 0.0, 0.0]
   elif month >= 6 and month <= 8:
-    seasonsFeatureVector = [0, 0, 1, 0]
+    seasonsFeatureVector = [0.0, 0.0, 1.0, 0.0]
   elif month >= 9 and month <= 11:
-    seasonsFeatureVector = [0, 0, 0, 1]
+    seasonsFeatureVector = [0.0, 0.0, 0.0, 1.0]
 
   return seasonsFeatureVector
 
@@ -71,9 +76,9 @@ def generateTheDayOfTheYearFeatures(date_str):
   
   for index in range(1, 367):
     if index == day_of_the_year:
-      dayOfTheYearFeatureVector.append(1)
+      dayOfTheYearFeatureVector.append(1.0)
     else:
-      dayOfTheYearFeatureVector.append(0)
+      dayOfTheYearFeatureVector.append(0.0)
 
   return dayOfTheYearFeatureVector
 
@@ -114,6 +119,7 @@ def createFeatureVector(left, right):
   featureVector += generateTheSeasonFeatures(nextDate)
   featureVector += generateTheDayOfTheYearFeatures(nextDate)
   featureVector.append(createDatetimeObject(nextDate, nextTime))
+  #print(str(type(featureVector[-2])))
 
   return featureVector
 
@@ -177,7 +183,7 @@ try:
   print('Computing the feature vectors...')
   print('Querying ' + dbdatabase + ' on Observatory...')
   cursor = conn.cursor()
-  query1 = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%s')='00:00' AND Temperature IS NOT NULL AND Dew_point IS NOT NULL AND Relative_humidity IS NOT NULL AND Wind_speed IS NOT NULL AND Wind_direction IS NOT NULL AND Total_solar_radiation IS NOT NULL AND Precipitation IS NOT NULL ORDER BY Date ASC")
+  query1 = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%s')='00:00' AND Temperature IS NOT NULL AND Dew_point IS NOT NULL AND Relative_humidity IS NOT NULL AND Wind_speed IS NOT NULL AND Wind_direction IS NOT NULL AND Total_solar_radiation IS NOT NULL AND Precipitation IS NOT NULL ORDER BY Date ASC, Time ASC")
   cursor.execute(query1)
 
   for (location, date, time, temperature, dew_point, relative_humidity, wind_spd, wind_dir, solar_rad, precip) in cursor:
@@ -194,7 +200,7 @@ try:
     wind_direction_array.append(str(wind_dir))
     total_solar_radiation_array.append(str(solar_rad))
     precipitation_array.append(str(precip))
-    print(location + ' ' + date_array[-1] + ' ' + time_array[-1] + ' ' + temperature_array[-1] + ' ' + dew_point_array[-1] + ' ' + relative_humidity_array[-1] + ' ' + wind_speed_array[-1] + ' ' + wind_direction_array[-1] + ' ' + total_solar_radiation_array[-1] + ' ' + precipitation_array[-1])
+    #print(location + ' ' + date_array[-1] + ' ' + time_array[-1] + ' ' + temperature_array[-1] + ' ' + dew_point_array[-1] + ' ' + relative_humidity_array[-1] + ' ' + wind_speed_array[-1] + ' ' + wind_direction_array[-1] + ' ' + total_solar_radiation_array[-1] + ' ' + precipitation_array[-1])
 
   print('Getting training labels...')
   print('Querying ' + dbdatabase + ' on pv_generation_actual...')
@@ -216,6 +222,7 @@ try:
   noOfFeatures = 24
   print('Computing the feature vectors...')
   featureVectors = createFeatureVectors(noOfFeatures, recordsLength)
+  #print(str(type(featureVectors[-1][-2])))
 
   print('Matching feature vectors to existing labels...')
   labelsVector = []
@@ -253,17 +260,38 @@ try:
     vectorLength = len(featureVectors[index])
     for index2 in range(0, vectorLength):
       out.write(str(featureVectors[index][index2]))
-
+      #sys.stdout.write(str(type(featureVectors[index][index2])))
+      featureVectors[index][index2] = float(featureVectors[index][index2])
+      #sys.stdout.write(str(type(featureVectors[index][index2])))
       if index2 < vectorLength - 1:
         out.write(', ')
 
     out.write('\n')
+    #sys.stdout.write('\n')
 
   out.close()
   
-  #labelsLength = len(labelsVector)
-  #for index in range(0, labelsLength):
+  print("Outputing labels to file...")
+  labels_out = open("labels.data", "w")
+  labelsLength = len(labelsVector)
+  for index in range(0, labelsLength):
     #print(str(index) + "\t" + labelsVector[index])
+    labelsVector[index] = float(labelsVector[index])
+    labels_out.write(str(labelsVector[index]) + '\n')
+    #print(str(type(labelsVector[index])))
+  labels_out.close()
+  
+  print("Training model...")
+  training_data = np.matrix(featureVectors)
+  training_labels = np.array(labelsVector)
+  mlp = MLPRegressor(verbose=1)
+  mlp.fit(training_data, training_labels)
+
+  print("Saving model to file...")
+  filename = 'finalised_model.pkl'
+  model_out = open(filename, 'wb')
+  pickle.dump(mlp, model_out)
+  model_out.close()
 
 except Error as e:
   print(e)
