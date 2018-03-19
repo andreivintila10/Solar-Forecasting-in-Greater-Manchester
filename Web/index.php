@@ -38,9 +38,11 @@
     <link rel="stylesheet" type="text/css" href="http://www.pvforecastmanchester.xyz/css/stylesheet.css">
     <link rel="shortcut icon" href="http://www.pvforecastmanchester.xyz/favicon.ico" type="image/x-icon">
     <link rel="icon" href="http://www.pvforecastmanchester.xyz/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
   </head>
 
   <body>
+    <h2>Greater Manchester PV Forecast</h2>
     <div id="graphDiv"></div>
     <script>
       var jsonString = '<?php echo $jsonString; ?>';
@@ -48,8 +50,8 @@
       graphData = jsonObject.chart_data;
 
       var margin = {top: 20, right: 100, bottom: 50, left: 70},
-              width = 960 - margin.left - margin.right,
-              height = 500 - margin.top - margin.bottom;
+              width = 860 - margin.left - margin.right,
+              height = 400 - margin.top - margin.bottom;
 
       var parseDate = d3.timeParse("%Y-%m-%d %H:%M:%S");
 
