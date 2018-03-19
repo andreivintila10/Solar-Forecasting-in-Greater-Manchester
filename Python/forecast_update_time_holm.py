@@ -19,7 +19,7 @@ def main():
   start_time = clock()
   print('Version of Python: ' + sys.version)
 
-  whitworth_url = "http://manunicast.seaes.manchester.ac.uk/charts/manunicast/20180315/d02/meteograms/meteo_HOLM_2018-03-14_1800_data.txt"
+  whitworth_url = "http://manunicast.seaes.manchester.ac.uk/charts/manunicast/20180315/d02/meteograms/meteo_HOLM_2018-03-14_1800_swdown_data.txt"
   upload_datetime = datetime(2018, 3, 14, 9, 0, 0)
   tries = 0
 

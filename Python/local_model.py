@@ -5,6 +5,8 @@ import mysql.connector
 from mysql.connector import Error
 import numpy as np
 from sklearn.neural_network import MLPRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
 import pickle
 
 
@@ -112,13 +114,12 @@ def createFeatureVector(left, right):
   currentDatetime = createDatetimeObject(date_array[right - 1], time_array[right - 1])
   nextDatetime = currentDatetime + datetime.timedelta(hours=1)
   nextDate = str(nextDatetime.date())
-  nextTime = str(nextDatetime.time())
 
   featureVector += generateTheDayFeatures(nextDate)
   featureVector += generateTheMonthFeatures(nextDate)
   featureVector += generateTheSeasonFeatures(nextDate)
   featureVector += generateTheDayOfTheYearFeatures(nextDate)
-  featureVector.append(createDatetimeObject(nextDate, nextTime))
+  featureVector.append(nextDatetime)
   #print(str(type(featureVector[-2])))
 
   return featureVector
@@ -204,7 +205,7 @@ try:
 
   print('Getting training labels...')
   print('Querying ' + dbdatabase + ' on pv_generation_actual...')
-  query2 = ("SELECT DISTINCT datetime_GMT, generation_MW FROM pv_generation_actual WHERE region_id=247 AND TIME_FORMAT(datetime_GMT, '%i:%s')='00:00' AND generation_MW IS NOT NULL ORDER BY datetime_GMT ASC")
+  query2 = ("SELECT DISTINCT datetime_GMT, generation_MW FROM pv_generation_actual WHERE region_id=266 AND TIME_FORMAT(datetime_GMT, '%i:%s')='00:00' AND generation_MW IS NOT NULL ORDER BY datetime_GMT ASC")
   cursor.execute(query2)
 
   generationVector = []
@@ -270,7 +271,7 @@ try:
     #sys.stdout.write('\n')
 
   out.close()
-  
+
   print("Outputing labels to file...")
   labels_out = open("labels.data", "w")
   labelsLength = len(labelsVector)
@@ -280,18 +281,39 @@ try:
     labels_out.write(str(labelsVector[index]) + '\n')
     #print(str(type(labelsVector[index])))
   labels_out.close()
-  
-  print("Training model...")
+
   training_data = np.matrix(featureVectors)
   training_labels = np.array(labelsVector)
+
+  print("Training MLPRegressor...")
   mlp = MLPRegressor(verbose=1)
   mlp.fit(training_data, training_labels)
 
-  print("Saving model to file...")
-  filename = 'finalised_model.pkl'
+  print("Saving MLPRegressor model to file...")
+  filename = 'finalised_mlp2.pkl'
   model_out = open(filename, 'wb')
   pickle.dump(mlp, model_out)
   model_out.close()
+
+  #print("Training Linear Regression...")
+  #lr = LinearRegression()
+  #lr.fit(training_data, training_labels)
+
+  #print("Saving Linear Regression model to file...")
+  #filename = 'finalised_lr.pkl'
+  #model_out = open(filename, 'wb')
+  #pickle.dump(lr, model_out)
+  #model_out.close()
+
+  #print("Training SVR...")
+  #svr = SVR(verbose=True)
+  #svr.fit(training_data, training_labels)
+
+  #print("Saving SVR model to file...")
+  #filename = 'finalised_svr.pkl'
+  #model_out = open(filename, 'wb')
+  #pickle.dump(svr, model_out)
+  #model_out.close()
 
 except Error as e:
   print(e)
