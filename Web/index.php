@@ -86,7 +86,7 @@
 
         svg.append("path")
           .data([data])
-          .style("stroke", "purple")
+          .style("stroke", "#660099")
           .attr("class", "line")
           .attr("d", label(data));
 
@@ -109,7 +109,7 @@
           .attr("x",0 - (height / 2))
           .attr("dy", "1em")
           .style("text-anchor", "middle")
-          .text("Expected PV Generation");
+          .text("Expected PV Generation (MW)");
       }
 
       drawGraph(graphData);

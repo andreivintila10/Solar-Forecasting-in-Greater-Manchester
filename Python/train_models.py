@@ -99,16 +99,16 @@ def areOneHourApart(datetime_object1, datetime_object2):
     return 0
 
 
-def createFeatureVector(left, right):
+def createFeatureVector(left, right, normalised_max, normalised_min):
   featureVector = []
   for index in range(left, right):
-    featureVector.append(temperature_array[index])
-    featureVector.append(dew_point_array[index])
-    featureVector.append(relative_humidity_array[index])
-    featureVector.append(wind_speed_array[index])
-    featureVector.append(wind_direction_array[index])
-    featureVector.append(total_solar_radiation_array[index])
-    featureVector.append(precipitation_array[index])
+    featureVector.append((float(temperature_array[index]) - normalised_min[0]) / (normalised_max[0] - normalised_min[0]))
+    featureVector.append((float(dew_point_array[index]) - normalised_min[1]) / (normalised_max[1] - normalised_min[1]))
+    featureVector.append((float(relative_humidity_array[index]) - normalised_min[2]) / (normalised_max[2] - normalised_min[2]))
+    featureVector.append((float(wind_speed_array[index]) - normalised_min[3]) / (normalised_max[3] - normalised_min[3]))
+    featureVector.append((float(wind_direction_array[index]) - normalised_min[4]) / (normalised_max[4] - normalised_min[4]))
+    featureVector.append((float(total_solar_radiation_array[index]) - normalised_min[5]) / (normalised_max[5] - normalised_min[5]))
+    featureVector.append((float(precipitation_array[index]) - normalised_min[6]) / (normalised_max[6] - normalised_min[6]))
 
   currentDatetime = createDatetimeObject(date_array[right - 1], time_array[right - 1])
   nextDatetime = currentDatetime + datetime.timedelta(hours=1)
@@ -124,6 +124,13 @@ def createFeatureVector(left, right):
 
 
 def createFeatureVectors(noOfFeatures, noOfRecords): 
+  normalised_max = [33.1, 20.270806, 100, 28.678068, 359.997838, 1313.080833, 166.65]
+  normalised_min = [-2.2, -12.020113, 10.97667, 0.0, 0.000263, -12.983455, 0.0]
+  normalisationLength = len(normalised_max)
+  for index in range(0, normalisationLength):
+    normalised_max[index] += normalised_max[index] / 20
+    normalised_min[index] -= normalised_min[index] / 20
+
   left = 0
   right = left + noOfFeatures
   previousOk = 0
@@ -141,7 +148,7 @@ def createFeatureVectors(noOfFeatures, noOfRecords):
       previousDatetime = currentDatetime
 
     if ok:
-      featureVector = createFeatureVector(left, right)
+      featureVector = createFeatureVector(left, right, normalised_max, normalised_min)
       featureVectors.append(featureVector)
 
       left += 1
@@ -180,7 +187,7 @@ try:
   precipitation_array = []
 
   print('Computing the feature vectors...')
-  print('Querying ' + dbdatabase + ' on Observatory...')
+  print('Querying ' + CONSTANT_DBDATABASE + ' on Observatory...')
   cursor = conn.cursor()
   query1 = ("SELECT DISTINCT * FROM Observatory WHERE Location='Whitworth' AND TIME_FORMAT(Time, '%i:%s')='00:00' AND Temperature IS NOT NULL AND Dew_point IS NOT NULL AND Relative_humidity IS NOT NULL AND Wind_speed IS NOT NULL AND Wind_direction IS NOT NULL AND Total_solar_radiation IS NOT NULL AND Precipitation IS NOT NULL ORDER BY Date ASC, Time ASC")
   cursor.execute(query1)
@@ -199,10 +206,9 @@ try:
     wind_direction_array.append(str(wind_dir))
     total_solar_radiation_array.append(str(solar_rad))
     precipitation_array.append(str(precip))
-    #print(location + ' ' + date_array[-1] + ' ' + time_array[-1] + ' ' + temperature_array[-1] + ' ' + dew_point_array[-1] + ' ' + relative_humidity_array[-1] + ' ' + wind_speed_array[-1] + ' ' + wind_direction_array[-1] + ' ' + total_solar_radiation_array[-1] + ' ' + precipitation_array[-1])
 
   print('Getting training labels...')
-  print('Querying ' + dbdatabase + ' on pv_generation_actual...')
+  print('Querying ' + CONSTANT_DBDATABASE + ' on pv_generation_actual...')
   query2 = ("SELECT DISTINCT datetime_GMT, generation_MW FROM pv_generation_actual WHERE region_id=266 AND TIME_FORMAT(datetime_GMT, '%i:%s')='00:00' AND generation_MW IS NOT NULL ORDER BY datetime_GMT ASC")
   cursor.execute(query2)
 
@@ -242,32 +248,15 @@ try:
       del featureVectors[index]
       vectorsLength = len(featureVectors)
 
-  print('Labels length: ' + str(len(labelsVector)))
-  print('Feature vector length: ' + str(len(featureVectors)))
-
-  print('Storing the feature vectors to file...')
-  outfile = "test_features(" + str(noOfFeatures) + ").csv" 
-  out = open(outfile, "w")
   vectorsLength = len(featureVectors)
   for index in range(0, vectorsLength):
     vectorLength = len(featureVectors[index])
     for index2 in range(0, vectorLength):
-      out.write(str(featureVectors[index][index2]))
       featureVectors[index][index2] = float(featureVectors[index][index2])
-      if index2 < vectorLength - 1:
-        out.write(', ')
 
-    out.write('\n')
-
-  out.close()
-
-  print("Outputing labels to file...")
-  labels_out = open("labels.data", "w")
   labelsLength = len(labelsVector)
   for index in range(0, labelsLength):
     labelsVector[index] = float(labelsVector[index])
-    labels_out.write(str(labelsVector[index]) + '\n')
-  labels_out.close()
 
   training_data = np.matrix(featureVectors)
   training_labels = np.array(labelsVector)
@@ -277,30 +266,30 @@ try:
   mlp.fit(training_data, training_labels)
 
   print("Saving MLPRegressor model to file...")
-  filename = 'finalised_mlp2.pkl'
+  filename = 'finalised_mlp_normalised.pkl'
   model_out = open(filename, 'wb')
   pickle.dump(mlp, model_out)
   model_out.close()
 
-  #print("Training Linear Regression...")
-  #lr = LinearRegression()
-  #lr.fit(training_data, training_labels)
+  print("Training Linear Regression...")
+  lr = LinearRegression()
+  lr.fit(training_data, training_labels)
 
-  #print("Saving Linear Regression model to file...")
-  #filename = 'finalised_lr.pkl'
-  #model_out = open(filename, 'wb')
-  #pickle.dump(lr, model_out)
-  #model_out.close()
+  print("Saving Linear Regression model to file...")
+  filename = 'finalised_lr_normalised.pkl'
+  model_out = open(filename, 'wb')
+  pickle.dump(lr, model_out)
+  model_out.close()
 
-  #print("Training SVR...")
-  #svr = SVR(verbose=True)
-  #svr.fit(training_data, training_labels)
+  print("Training SVR...")
+  svr = SVR(verbose=True)
+  svr.fit(training_data, training_labels)
 
-  #print("Saving SVR model to file...")
-  #filename = 'finalised_svr.pkl'
-  #model_out = open(filename, 'wb')
-  #pickle.dump(svr, model_out)
-  #model_out.close()
+  print("Saving SVR model to file...")
+  filename = 'finalised_svr_normalised.pkl'
+  model_out = open(filename, 'wb')
+  pickle.dump(svr, model_out)
+  model_out.close()
 
 except Error as e:
   print(e)
