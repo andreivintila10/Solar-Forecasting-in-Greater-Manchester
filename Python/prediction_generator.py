@@ -339,6 +339,7 @@ def main():
     sys.exit()
 
   site_codes = ['WHIT', 'HOLM', 'MAN']
+  query_template = "INSERT INTO Predictions VALUES (\"{}\", {}) ON DUPLICATE KEY UPDATE generation_MW={}"
 
   dateOfReference = datetime.now()
   #dateOfReference = datetime(2018, 3, 22, 6, 0, 0, 0)
@@ -418,15 +419,16 @@ def main():
       print('Querying ' + CONSTANT_DBDATABASE + ' on Predictions...')
       cursor = conn.cursor()
       for index in range(len(prediction)):
-        query = ("INSERT INTO Predictions VALUES (\"" + str(dateVector[index]) + "\", " + str(prediction[index]) + ") ON DUPLICATE KEY UPDATE generation_MW=" + str(prediction[index]))
+        query = query_template.format(dateVector[index], prediction[index], prediction[index])
         cursor.execute(query)
-      conn.commit()
+        conn.commit()
 
     except Error as e:
       print(e)
 
     finally:
        cursor.close()
+       conn.close()
 
     current_time = datetime.now()
     next_prediction_hour = current_time.hour + 1
